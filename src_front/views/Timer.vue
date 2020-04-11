@@ -16,7 +16,7 @@
 			<span class="duration">{{currentDuration}}</span>
 		</div>
 
-		<Button v-if="needClick" title="Click to start" class="big" highlight @click="needClick = false;" />
+		<Button v-if="needClick" title="Click to start" class="big" highlight @click="startTimer()" />
 	</div>
 </template>
 
@@ -43,6 +43,7 @@ export default class Timer extends Vue {
 
 	public steps:any = [];
 	public timings:{time:number, data?:StepData}[] = [];
+	public complete:boolean = false;
 	public needClick:boolean = false;
 	public disposed:boolean = false;
 	public elapsed:number = 0;
@@ -57,7 +58,7 @@ export default class Timer extends Vue {
 	public startExerciseTime!:Date;
 
 	public get totalDurationFormated():string {
-		return Utils.secondsToInputValue(this.totalDuration - this.elapsed);
+		return Utils.secondsToInputValue(Math.max(0,this.totalDuration - this.elapsed));
 	}
 
 	public get arrowPos():any {
@@ -73,7 +74,7 @@ export default class Timer extends Vue {
 	}
 
 	public get currentDuration():string {
-		return Utils.secondsToInputValue(this.currentStepCounter);
+		return Utils.secondsToInputValue(Math.max(0,this.currentStepCounter));
 	}
 
 	public beforeMount():void {
@@ -96,6 +97,7 @@ export default class Timer extends Vue {
 		this.steps.push({type:"path", duration:5000});
 		this.timings.push({time:0, data:{id:"start", duration:5000}});
 		let delay = 5000;
+		this.totalDuration += delay;
 		let loops:number = this.routine.loops? this.routine.loops : 0;
 		for (let j = 0; j < loops; j++) {
 			//Add step
@@ -107,6 +109,7 @@ export default class Timer extends Vue {
 				let t = s.duration? s.duration : 0;
 				this.totalDuration += t;
 				delay += t;
+				console.log(this.totalDuration)
 			}
 			//Add pauses
 			if(j < loops-1) {
@@ -120,11 +123,20 @@ export default class Timer extends Vue {
 		}
 		this.steps[this.steps.length-1].isLast = true;
 		this.steps.push({type:"node", label:"Finish"});
+		this.timings.push({time:delay, data:{id:"complete", duration:0}});
 
 		this.startTime = new Date();
 		this.startTime.setSeconds(this.startTime.getSeconds() - 10*0);
 
+		if(!this.needClick) {
+			this.startTimer();
+		}
 		requestAnimationFrame(_=>this.renderFrame());
+	}
+
+	public startTimer():void {
+		this.needClick = false;
+		this.startTime = new Date();
 	}
 
 	public beforeDestroy():void {
@@ -132,7 +144,7 @@ export default class Timer extends Vue {
 	}
 
 	private renderFrame():void {
-		if(this.disposed) return;
+		if(this.disposed || this.complete) return;
 		requestAnimationFrame(_=>this.renderFrame());
 		if(this.needClick) return;
 
@@ -140,26 +152,26 @@ export default class Timer extends Vue {
 		let currentStep!:StepData;
 		for (let i = 0; i < this.timings.length; i++) {
 			const e = this.timings[i];
-			if(e.time > this.elapsed) {
-				if(i > 0) {
-					currentStep = <StepData>this.timings[i-1].data;
-					if(this.currentStepData != currentStep) {
-						this.currentStepData = currentStep;
-						this.startExerciseTime = new Date();
-						if(currentStep.id) {
-							//Exercise
-							Beeper.instance.beep(100, 1500, 1, "sine");
-						}else{
-							//pause
-							Beeper.instance.beep(500, 1000, 1, "sine");
-						}
+			if(e.time >= this.elapsed) {
+				currentStep = <StepData>this.timings[i-1].data;
+				if(this.currentStepData != currentStep) {
+					this.currentStepData = currentStep;
+					this.startExerciseTime = new Date();
+					if(currentStep.id == "start") {
+						Beeper.instance.beep(100, 1000, 1, "sine");
+					}else 
+					if(currentStep.id == "relax") {
+						Beeper.instance.beep(500, 1000, 1, "sine");
+					}else {
+						Beeper.instance.beep(100, 1500, 1, "sine");
 					}
 				}
 				break;
 			}
 		}
 		
-		switch(currentStep.id) {
+		let id = currentStep? currentStep.id : "complete";
+		switch(id) {
 			case "start":
 				this.currentStepLabel = "⏱ Get Ready ⏱";
 				break;
@@ -167,7 +179,21 @@ export default class Timer extends Vue {
 				this.currentStepLabel = "⏳ Relax ⏳";
 				break;
 			case "complete":
+				this.complete = true;
 				this.currentStepLabel = "👏 Finish 👏";
+				Beeper.instance.beep(100, 2000, 1, "sine");
+				setTimeout(_=> {
+					Beeper.instance.beep(100, 2000, 1, "sine");
+					setTimeout(_=> {
+						Beeper.instance.beep(100, 2000, 1, "sine");
+						setTimeout(_=> {
+							Beeper.instance.beep(100, 2000, 1, "sine");
+							setTimeout(_=> {
+								Beeper.instance.beep(100, 2000, 1, "sine");
+							}, 150);
+						}, 150);
+					}, 150);
+				}, 150);
 				break;
 			default:
 				this.currentStepLabel = currentStep.name;

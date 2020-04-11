@@ -8,7 +8,7 @@
 			<img src="@/assets/icons/pin.svg" class="img">
 			<div class="back"></div>
 			<div class="line"></div>
-			<img src="@/assets/icons/pin.svg" class="img" v-if="data.isLast">
+			<img src="@/assets/icons/pin_red.svg" class="img" v-if="data.isLast">
 		</div>
 	</div>
 </template>
@@ -82,7 +82,7 @@ export default class TimelineNode extends Vue {
 			background-color: #ffffff;
 			height: 100%;
 			width: 2px;
-			height: 100%;
+			height: calc(100% - 15px);
 			display: block;
 			margin: auto;
 			z-index: 1;
