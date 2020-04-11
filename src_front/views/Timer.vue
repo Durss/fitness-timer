@@ -109,7 +109,6 @@ export default class Timer extends Vue {
 				let t = s.duration? s.duration : 0;
 				this.totalDuration += t;
 				delay += t;
-				console.log(this.totalDuration)
 			}
 			//Add pauses
 			if(j < loops-1) {
