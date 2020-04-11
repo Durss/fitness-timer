@@ -1,3 +1,4 @@
+![Icon](https://github.com/Durss/fitness-timer/blob/master/public/favicon.png)
 # Fitness Timer
 
 Just a timer in which you can define multiple exercises, their duration, and the number of times all these exercises must be looped as well as a rest duration between those loops.
