@@ -56,6 +56,7 @@ export default class Timer extends Vue {
 	public routine!:RoutineData;
 	public startTime!:Date;
 	public startExerciseTime!:Date;
+	public beeps:number[] = [];
 
 	public get totalDurationFormated():string {
 		return Utils.secondsToInputValue(Math.max(0,this.totalDuration - this.elapsed));
@@ -93,6 +94,7 @@ export default class Timer extends Vue {
 			return;
 		}
 		
+		//PREPARE DATA STRUCTURE TO BUILD TIMELINE
 		let prepDuration = 10000;
 		this.steps.push({type:"node", label:"Get Ready"});
 		this.steps.push({type:"path", duration:prepDuration});
@@ -125,9 +127,6 @@ export default class Timer extends Vue {
 		this.steps.push({type:"node", label:"Finish"});
 		this.timings.push({time:delay, data:{id:"complete", duration:0}});
 
-		this.startTime = new Date();
-		this.startTime.setSeconds(this.startTime.getSeconds() - 10*0);
-
 		if(!this.needClick) {
 			this.startTimer();
 		}
@@ -137,10 +136,15 @@ export default class Timer extends Vue {
 	public startTimer():void {
 		this.needClick = false;
 		this.startTime = new Date();
+		this.programBeeps();
 	}
 
 	public beforeDestroy():void {
 		this.disposed = true;
+		//Cleanup programmed beeps
+		for (let i = 0; i < this.beeps.length; i++) {
+			clearTimeout(this.beeps[i]);
+		}
 	}
 
 	private renderFrame():void {
@@ -157,32 +161,6 @@ export default class Timer extends Vue {
 				if(this.currentStepData != currentStep) {
 					this.currentStepData = currentStep;
 					this.startExerciseTime = new Date();
-
-					//Beep 7s before end to alert it's starting or next exercise will start
-					if(currentStep.id == "start" || currentStep.id == "pause") {
-						if(currentStep.id == "pause") {
-							//Beep when pause starts
-							Beeper.instance.beepPatern([{d:100, f:1000, p:10}, {d:500, f:1000}]);
-						}
-						
-						//Start beeping 7s before pause ends
-						if(currentStep.duration >= 10000) {
-							setTimeout(async _=> {
-								await Beeper.instance.beepPatern([{d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}], .15);
-								await Beeper.instance.beepPatern([{d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}]);
-							}, Math.max(0,currentStep.duration - 8000));
-						}
-					}else{
-						//Beep at start of new exercise
-						Beeper.instance.beep(500, 1500, 1, "sine");
-
-						//Beep 5s before end of exercise
-						if(currentStep.duration >= 7000){
-							setTimeout(async _=> {
-								await Beeper.instance.beepPatern([{d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}], .15);
-							}, Math.max(0,currentStep.duration - 5000));
-						}
-					}
 				}
 				break;
 			}
@@ -199,15 +177,13 @@ export default class Timer extends Vue {
 			case "complete":
 				this.complete = true;
 				this.currentStepLabel = "👏 Finish 👏";
-				Beeper.instance.beepPatern([{d:50, f:1700}, {d:100, f:2000}, {d:50, f:2200}, {d:50, f:2600}, {d:500, f:3000}]);
 				break;
 			default:
 				this.currentStepLabel = currentStep.name;
 
 		}
-		this.currentStepCounter = Math.floor(this.currentStepData.duration - (new Date().getTime() - this.startExerciseTime.getTime()));
+		this.currentStepCounter = Math.ceil(this.currentStepData.duration - (new Date().getTime() - this.startExerciseTime.getTime()));
 
-		//Wait for arrow to be placed 
 		let arrow:HTMLDivElement = <HTMLDivElement>this.$refs.arrow;
 		let bounds = arrow.getBoundingClientRect();
 		let cY = window.innerHeight * .35;
@@ -215,11 +191,65 @@ export default class Timer extends Vue {
 		this.labelPos = bounds.top + 10;
 
 		if(bounds.top > cY) {
+			//Wait for arrow to be placed 
 			this.$nextTick().then(_=> {
-				window.scrollBy(0, Math.floor(bounds.top - cY));
+				window.scrollBy(0, Math.round(bounds.top - cY));
 			});
 		}
 		
+	}
+
+	/**
+	 * Oscillator is slow to initialize and start beeping (~500ms)
+	 * that's why all beeps are pre programmed from the beggining
+	 * 500ms earlier before they should play so they appear synced
+	 * with the textual timer
+	 */
+	public programBeeps():void {
+		let delay = 0;
+		for (let i = 0; i < this.timings.length; i++) {
+			const t = this.timings[i];
+			switch(t.data.id) {
+				case "start":
+				case "pause":
+					if(t.data.id == "pause") {
+						this.beeps.push(setTimeout(async _=> {
+							Beeper.instance.beepPatern([{d:100, f:1000, p:10}, {d:500, f:1000}]);
+						}, delay - 500));
+					}else{
+						// Beeper.instance.beep(200, 1500);
+					}
+				
+					//Start beeping 7s before pause ends
+					if(t.data.duration >= 10000) {
+						this.beeps.push(setTimeout(async _=> {
+							await Beeper.instance.beepPatern([{d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}], .15);
+							await Beeper.instance.beepPatern([{d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}]);
+						}, Math.max(0,t.data.duration - 8500) + delay));
+					}
+					break;
+					
+				case "complete":
+					this.beeps.push(setTimeout(async _=> {
+						Beeper.instance.beepPatern([{d:50, f:1700}, {d:100, f:2000}, {d:50, f:2200}, {d:50, f:2600}, {d:500, f:3000}]);
+					}, delay - 500));
+					break;
+
+				default:
+					this.beeps.push(setTimeout(async _=> {
+						Beeper.instance.beep(500, 1500, 1, "sine");
+					}, delay - 500));
+					//Start beeping 5s before end of exercise
+					if(t.data.duration > 7000) {
+						this.beeps.push(setTimeout(async _=> {
+							await Beeper.instance.beepPatern([{d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}], .15);
+						}, Math.max(0,t.data.duration - 5500) + delay));
+					}
+
+			}
+			delay += t.data.duration;
+		}
+
 	}
 
 }
@@ -281,7 +311,7 @@ export default class Timer extends Vue {
 		position: fixed;
 		font-family: "Futura", Helvetica, Arial, sans-serif;
 		font-weight: bold;
-		font-size: 50px;
+		font-size: 40px;
 		background-color: white;
 		padding: 10px 20px;
 		border-radius: 15px;
@@ -295,7 +325,7 @@ export default class Timer extends Vue {
 		flex-direction: column;
 
 		.duration {
-			font-size: 30px;
+			font-size: 25px;
 			margin-top: 10px;
 		}
 	}
@@ -329,7 +359,7 @@ export default class Timer extends Vue {
 		}
 
 		.label {
-			font-size: 30px;
+			font-size: 25px;
 			.duration {
 				font-size: 18px;
 			}
