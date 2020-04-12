@@ -74,7 +74,7 @@ export default class Timer extends Vue {
 	}
 
 	public get currentDuration():string {
-		return Utils.secondsToInputValue(Math.max(0,this.currentStepCounter));
+		return Utils.secondsToInputValue(Math.ceil(Math.max(0,this.currentStepCounter)));
 	}
 
 	public beforeMount():void {
@@ -92,11 +92,12 @@ export default class Timer extends Vue {
 			this.$router.push({name:"home"});
 			return;
 		}
-
+		
+		let prepDuration = 10000;
 		this.steps.push({type:"node", label:"Get Ready"});
-		this.steps.push({type:"path", duration:5000});
-		this.timings.push({time:0, data:{id:"start", duration:5000}});
-		let delay = 5000;
+		this.steps.push({type:"path", duration:prepDuration});
+		this.timings.push({time:0, data:{id:"start", duration:prepDuration}});
+		let delay = prepDuration;
 		this.totalDuration += delay;
 		let loops:number = this.routine.loops? this.routine.loops : 0;
 		for (let j = 0; j < loops; j++) {
@@ -156,13 +157,31 @@ export default class Timer extends Vue {
 				if(this.currentStepData != currentStep) {
 					this.currentStepData = currentStep;
 					this.startExerciseTime = new Date();
-					if(currentStep.id == "start") {
-						Beeper.instance.beep(100, 1000, 1, "sine");
-					}else 
-					if(currentStep.id == "relax") {
-						Beeper.instance.beep(500, 1000, 1, "sine");
-					}else {
-						Beeper.instance.beep(100, 1500, 1, "sine");
+
+					//Beep 7s before end to alert it's starting or next exercise will start
+					if(currentStep.id == "start" || currentStep.id == "pause") {
+						if(currentStep.id == "pause") {
+							//Beep when pause starts
+							Beeper.instance.beepPatern([{d:100, f:1000, p:10}, {d:500, f:1000}]);
+						}
+						
+						//Start beeping 7s before pause ends
+						if(currentStep.duration >= 10000) {
+							setTimeout(async _=> {
+								await Beeper.instance.beepPatern([{d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}], .15);
+								await Beeper.instance.beepPatern([{d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}]);
+							}, Math.max(0,currentStep.duration - 8000));
+						}
+					}else{
+						//Beep at start of new exercise
+						Beeper.instance.beep(500, 1500, 1, "sine");
+
+						//Beep 5s before end of exercise
+						if(currentStep.duration >= 7000){
+							setTimeout(async _=> {
+								await Beeper.instance.beepPatern([{d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}], .15);
+							}, Math.max(0,currentStep.duration - 5000));
+						}
 					}
 				}
 				break;
@@ -180,25 +199,13 @@ export default class Timer extends Vue {
 			case "complete":
 				this.complete = true;
 				this.currentStepLabel = "👏 Finish 👏";
-				Beeper.instance.beep(100, 2000, 1, "sine");
-				setTimeout(_=> {
-					Beeper.instance.beep(100, 2000, 1, "sine");
-					setTimeout(_=> {
-						Beeper.instance.beep(100, 2000, 1, "sine");
-						setTimeout(_=> {
-							Beeper.instance.beep(100, 2000, 1, "sine");
-							setTimeout(_=> {
-								Beeper.instance.beep(100, 2000, 1, "sine");
-							}, 150);
-						}, 150);
-					}, 150);
-				}, 150);
+				Beeper.instance.beepPatern([{d:50, f:1700}, {d:100, f:2000}, {d:50, f:2200}, {d:50, f:2600}, {d:500, f:3000}]);
 				break;
 			default:
 				this.currentStepLabel = currentStep.name;
 
 		}
-		this.currentStepCounter = this.currentStepData.duration - (new Date().getTime() - this.startExerciseTime.getTime());
+		this.currentStepCounter = Math.floor(this.currentStepData.duration - (new Date().getTime() - this.startExerciseTime.getTime()));
 
 		//Wait for arrow to be placed 
 		let arrow:HTMLDivElement = <HTMLDivElement>this.$refs.arrow;

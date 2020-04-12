@@ -438,4 +438,10 @@ export default class Utils {
 		let s = Math.round((seconds-h*3600000-m*60000)/1000);
 		return tod(h)+":"+tod(m)+":"+tod(s);
 	}
+
+	public static promisedTimeout(delay:number):Promise<void> {
+		return new Promise(function(resolve) {
+			setTimeout(_=>resolve(), delay);
+		})
+	}
 }
