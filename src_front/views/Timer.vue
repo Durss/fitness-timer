@@ -6,14 +6,16 @@
 			<h2>{{totalDurationFormated}}</h2>
 		</div>
 		<div class="list" v-if="!needClick">
-			<TimelineNode v-for="(s, index) in steps" :key="index" :data="s" />
-			<div class="arrow" :style="arrowPos" ref="arrow">
-				<img src="@/assets/icons/arrow.svg" alt="arrow">
+			<div class="inner" ref="list" :style="scrollStyles">
+				<TimelineNode v-for="(s, index) in steps" :key="index" :data="s" />
 			</div>
 		</div>
 		<div class="label" ref="label" :style="labelStyles" v-if="!needClick">
 			<span class="exercise">{{currentStepLabel}}</span>
 			<span class="duration">{{currentDuration}}</span>
+			<div class="arrow">
+				<img src="@/assets/icons/arrow.svg" alt="arrow">
+			</div>
 		</div>
 
 		<Button v-if="needClick" title="Click to start" class="big" highlight @click="startTimer()" />
@@ -48,6 +50,7 @@ export default class Timer extends Vue {
 	public disposed:boolean = false;
 	public elapsed:number = 0;
 	public totalDuration:number = 0;
+	public scrollY:number = 0;
 	public labelPos:number = 0;
 	public currentStepData:any = null;
 	public currentStepLabel:string = "";
@@ -62,20 +65,20 @@ export default class Timer extends Vue {
 		return Utils.secondsToInputValue(Math.max(0,this.totalDuration - this.elapsed));
 	}
 
-	public get arrowPos():any {
-		return {
-			top:(this.elapsed*Config.TIME_RENDER_RATIO)+"px",
-		}
-	}
-
 	public get labelStyles():any {
 		return {
-			top:Math.round(this.labelPos)+"px",
+			top: this.labelPos+"px",
 		}
 	}
 
 	public get currentDuration():string {
 		return Utils.secondsToInputValue(Math.ceil(Math.max(0,this.currentStepCounter)));
+	}
+
+	public get scrollStyles():any {
+		return {
+			marginTop: -this.scrollY+"px",
+		}
 	}
 
 	public beforeMount():void {
@@ -136,6 +139,7 @@ export default class Timer extends Vue {
 	public startTimer():void {
 		this.needClick = false;
 		this.startTime = new Date();
+		// this.startTime.setSeconds(this.startTime.getSeconds() - 535);//TODO comment that debug
 		this.programBeeps();
 	}
 
@@ -145,6 +149,7 @@ export default class Timer extends Vue {
 		for (let i = 0; i < this.beeps.length; i++) {
 			clearTimeout(this.beeps[i]);
 		}
+		Beeper.instance.stopAll();
 	}
 
 	private renderFrame():void {
@@ -184,18 +189,24 @@ export default class Timer extends Vue {
 		}
 		this.currentStepCounter = Math.ceil(this.currentStepData.duration - (new Date().getTime() - this.startExerciseTime.getTime()));
 
-		let arrow:HTMLDivElement = <HTMLDivElement>this.$refs.arrow;
-		let bounds = arrow.getBoundingClientRect();
+		let list:HTMLDivElement = <HTMLDivElement>this.$refs.list;
+		let boundsList = list.getBoundingClientRect();
 		let cY = window.innerHeight * .35;
 		
-		this.labelPos = bounds.top + 10;
 
-		if(bounds.top > cY) {
-			//Wait for arrow to be placed 
-			this.$nextTick().then(_=> {
-				window.scrollBy(0, Math.round(bounds.top - cY));
-			});
+		this.scrollY = 0;//Math.round((boundsList.height) * this.elapsed/this.totalDuration);
+		// this.labelPos = 160;
+		//50 is the padding-top of the list
+		//25 is the radius of a step dot
+		//160 is the original offset of the center of the first dot on screen
+		let pos = Math.round((boundsList.height - 50 - 25) * this.elapsed/this.totalDuration) + 160;
+		if(pos < cY) {
+			this.labelPos = pos;
+		} else {
+			this.scrollY = pos - cY;
+			this.labelPos = cY;
 		}
+		// window.scrollBy(0, this.scrollY);
 		
 	}
 
@@ -206,6 +217,7 @@ export default class Timer extends Vue {
 	 * with the textual timer
 	 */
 	public programBeeps():void {
+		//*
 		let delay = 0;
 		for (let i = 0; i < this.timings.length; i++) {
 			const t = this.timings[i];
@@ -214,24 +226,27 @@ export default class Timer extends Vue {
 				case "pause":
 					if(t.data.id == "pause") {
 						this.beeps.push(setTimeout(async _=> {
-							Beeper.instance.beepPatern([{d:100, f:1000, p:10}, {d:500, f:1000}]);
+							// Beeper.instance.beepPatern([{d:100, f:1000, p:100}, {d:500, f:1000}]);
+							Beeper.instance.beepPatern([{d:500, f:1000, p:100}, {d:500, f:1000, p:100}, {d:500, f:1000}]);
+
 						}, delay - 500));
 					}else{
 						// Beeper.instance.beep(200, 1500);
 					}
 				
-					//Start beeping 7s before pause ends
+					//Start beeping 5s before pause ends
 					if(t.data.duration >= 10000) {
 						this.beeps.push(setTimeout(async _=> {
-							await Beeper.instance.beepPatern([{d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}], .15);
+							// await Beeper.instance.beepPatern([{d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}], .15);
 							await Beeper.instance.beepPatern([{d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}]);
-						}, Math.max(0,t.data.duration - 8500) + delay));
+						}, Math.max(0,t.data.duration - 5500) + delay));
 					}
 					break;
 					
 				case "complete":
 					this.beeps.push(setTimeout(async _=> {
-						Beeper.instance.beepPatern([{d:50, f:1700}, {d:100, f:2000}, {d:50, f:2200}, {d:50, f:2600}, {d:500, f:3000}]);
+						// Beeper.instance.beepPatern([{d:50, f:1500}, {d:100, f:1800}, {d:50, f:2000}, {d:50, f:2400}, {d:500, f:2800}]);
+						Beeper.instance.beepPatern([{d:100, f:1300, p:100}, {d:50, f:1300, p:50}, {d:50, f:1300, p:50}, {d:500, f:1800}]);
 					}, delay - 500));
 					break;
 
@@ -249,6 +264,7 @@ export default class Timer extends Vue {
 			}
 			delay += t.data.duration;
 		}
+		//*/
 
 	}
 
@@ -258,6 +274,8 @@ export default class Timer extends Vue {
 <style scoped lang="less">
 @import (reference) '../less/_includes.less';
 .timer {
+	overflow: hidden;
+	height: 100vh;
 	.back {
 		position: fixed;
 		top: 0;
@@ -276,33 +294,20 @@ export default class Timer extends Vue {
 	}
 
 	.list {
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		align-items: center;
-		margin-top: 30px;
-		margin-bottom: 30px;
-		position: relative;
-
-		&>div{
-			&:not(.first-child):not(.arrow) {
-				margin-top: -25px;
-				color: red;
-			}
-		}
-
-		.arrow {
-			position: absolute;
-			width: 30vw;
-			top: 0;
-			right: 50%;
-			z-index: 2;
-			transform: translate(0, -50%);
-			text-align: right;
-			filter: drop-shadow(0 5px 2px rgba(0,0,0,.2));
-			img {
-				height: 20px;
-				margin-left: -1px;
+		.inner {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			margin-top: 0px;
+			padding-top: 50px;
+			position: relative;
+	
+			&>div{
+				&:not(.first-child):not(.arrow) {
+					margin-top: -25px;
+					color: red;
+				}
 			}
 		}
 	}
@@ -327,6 +332,20 @@ export default class Timer extends Vue {
 		.duration {
 			font-size: 25px;
 			margin-top: 10px;
+		}
+
+		.arrow {
+			position: absolute;
+			width: 18px;
+			height: 20px;
+			right: -16px;
+			top: 50%;
+			transform: translate(0, -50%);
+			img {
+				height: 20px;
+				width: 18px;
+				display: block;
+			}
 		}
 	}
 }
