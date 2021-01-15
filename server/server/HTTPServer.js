@@ -1,13 +1,17 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const bodyParser = require("body-parser");
-const express = require("express");
 const http = require("http");
 const Config_1 = require("../utils/Config");
 const Logger_1 = require("../utils/Logger");
-const AbstractExpressServer_1 = require("./AbstractExpressServer");
 const historyApiFallback = require("connect-history-api-fallback");
-class HTTPServer extends AbstractExpressServer_1.AbstractExpressServer {
+const express = require("express");
+class HTTPServer {
+    constructor(port) {
+        this.port = port;
+        this.app = express();
+        this.doPrepareApp();
+    }
     initError(error) {
         Logger_1.default.error("Error happened !", error);
     }
@@ -28,8 +32,8 @@ class HTTPServer extends AbstractExpressServer_1.AbstractExpressServer {
                 }
             ],
         }));
-        let publicFolder = Config_1.default.PUBLIC_PATH;
-        this.app.use(Config_1.default.SERVER_NAME + "/", express.static(publicFolder)); //static files
+        let staticHandler = express.static(Config_1.default.PUBLIC_PATH);
+        this.app.use(Config_1.default.SERVER_NAME + "/", staticHandler); //static files
         this.app.use(bodyParser.json({ limit: '10mb' }));
         this.app.use(bodyParser.urlencoded({ extended: true }));
         this.app.all(Config_1.default.SERVER_NAME + "/*", (req, res, next) => {
@@ -44,7 +48,14 @@ class HTTPServer extends AbstractExpressServer_1.AbstractExpressServer {
     errorHandler(error, req, res, next) {
         Logger_1.default.error("Express error");
         console.log(error);
-        return super.errorHandler(error, req, res, next);
+        let status = error.status || 500;
+        let err = error.error || error;
+        res.status(status);
+        if (typeof err == "object")
+            res.json(err);
+        else {
+            res.send(err);
+        }
     }
 }
 exports.default = HTTPServer;
