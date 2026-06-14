@@ -1,0 +1,28 @@
+# Dependencies & build artifacts (rebuilt inside the image)
+node_modules
+dist
+server
+
+# Local environment selector (the image writes its own "prod" value)
+env.conf
+
+# VCS / tooling / editor
+.git
+.gitignore
+.claude
+.vscode
+.idea
+
+# Docker files themselves
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Docs & misc
+*.md
+gsap-bonus.tgz
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

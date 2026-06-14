@@ -1,0 +1,8 @@
+services:
+  fitness-timer:
+    build: .
+    image: fitness-timer
+    container_name: fitness-timer
+    ports:
+      - "3007:3007"
+    restart: unless-stopped
