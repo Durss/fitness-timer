@@ -1,9 +1,8 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2017",
     "module": "esnext",
     "strict": true,
-    "jsx": "preserve",
     "importHelpers": true,
     "moduleResolution": "node",
     "experimentalDecorators": true,
@@ -31,10 +30,7 @@
   },
   "include": [
     "src_front/**/*.ts",
-    "src_front/**/*.tsx",
-    "src_front/**/*.vue",
-    "tests/**/*.ts",
-    "tests/**/*.tsx"
+    "src_front/**/*.vue"
   ],
   "exclude": [
     "node_modules"

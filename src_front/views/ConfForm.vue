@@ -35,66 +35,56 @@
 	</div>
 </template>
 
-<script lang="ts">
-import { Component, Inject, Model, Prop, Vue, Watch, Provide } from "vue-property-decorator";
+<script setup lang="ts">
+import { ref, computed, onMounted } from "vue";
+import { useStore } from "vuex";
+import { useRouter } from "vue-router";
 import Button from '../components/Button.vue';
 import StepLine from '../components/StepLine.vue';
 import RoutineData from '../vo/RoutineData';
 import StepData from '../vo/StepData';
-import Utils from '../utils/Utils';
 import { v4 as uuidv4 } from 'uuid';
 
-@Component({
-	components:{
-		Button,
-		StepLine,
-	}
-})
-export default class ConfForm extends Vue {
+const store = useStore();
+const router = useRouter();
 
-	public name:string = "";
-	public loops:number = 3;
-	public pauseDuration:string|null = "00:01:30";
-	public steps:StepData[] = [];
+const name = ref<string|null>("");
+const loops = ref<number|string>(3);
+const pauseDuration = ref<string|null>("00:01:30");
+const steps = ref<StepData[]>([]);
 
-	public get routines():RoutineData[] { return this.$store.state.routines; }
+const routines = computed<RoutineData[]>(() => store.state.routines);
 
-	public mounted():void {
-		this.addExercise();
-	}
+onMounted(() => {
+	addExercise();
+});
 
-	public beforeDestroy():void {
-		
-	}
+function onSubmit():void {
+	let d = new Date("1/1/1970 "+pauseDuration.value);
 
-	public onSubmit():void {
-		let d = new Date("1/1/1970 "+this.pauseDuration);
-
-		let routine:RoutineData = {
-			id:uuidv4(),
-			name:this.name,
-			loops:this.loops,
-			pauseDuration:d.getTime() - d.getTimezoneOffset()*60000,
-			steps:this.steps,
-		}
-
-		this.$store.dispatch("addRoutine", routine);
-
-		this.$router.push({name:"timer", params:{id:routine.id}});
+	let routine:RoutineData = {
+		id:uuidv4(),
+		name:name.value ?? "",
+		loops:typeof loops.value == "string" ? parseInt(loops.value) : loops.value,
+		pauseDuration:d.getTime() - d.getTimezoneOffset()*60000,
+		steps:steps.value,
 	}
 
-	public addExercise():void {
-		this.steps.push({id:uuidv4()});
-	}
+	store.dispatch("addRoutine", routine);
 
-	public deleteStep(index:number):void {
-		this.steps.splice(index, 1);
-	}
+	router.push({name:"timer", params:{id:routine.id}});
+}
 
-	public deleteRoutine(r:RoutineData):void {
-		this.$store.dispatch("deleteRoutine", r);
-	}
+function addExercise():void {
+	steps.value.push({id:uuidv4()});
+}
 
+function deleteStep(index:number):void {
+	steps.value.splice(index, 1);
+}
+
+function deleteRoutine(r:RoutineData):void {
+	store.dispatch("deleteRoutine", r);
 }
 </script>
 

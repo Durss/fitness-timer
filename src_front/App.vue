@@ -4,23 +4,7 @@
 	</div>
 </template>
 
-<script lang="ts">
-import { Component, Inject, Model, Prop, Vue, Watch, Provide } from "vue-property-decorator";
-import Beeper from './utils/Beeper';
-
-@Component({
-	components:{}
-})
-export default class App extends Vue {
-
-	public mounted():void {
-	}
-
-	public beforeDestroy():void {
-		
-	}
-
-}
+<script setup lang="ts">
 </script>
 
 <style scoped lang="less">

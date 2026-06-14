@@ -20,123 +20,113 @@
 	</component>
 </template>
 
-<script lang="ts">
-import { Component, Inject, Model, Prop, Vue, Watch, Provide } from "vue-property-decorator";
+<script setup lang="ts">
+import { ref, computed, watch, onMounted } from "vue";
 import gsap from 'gsap';
 
-@Component
-export default class Button extends Vue {
+const props = withDefaults(defineProps<{
+	icon?:string;
+	iconSelected?:string;
+	title?:string;
+	name?:string;
+	loading?:boolean;
+	type?:string;
+	target?:string;
+	to?:any;
+	percent?:number;
+	white?:boolean;
+	big?:boolean;
+	highlight?:boolean;
+	selected?:boolean;
+	disabled?:boolean;
+	modelValue?:boolean;
+}>(), {
+	loading: false,
+	type: "button",
+	to: null,
+	percent: -1,
+	white: false,
+	big: false,
+	highlight: false,
+	selected: false,
+	disabled: false,
+	modelValue: false,
+});
 
-	@Prop()
-	public icon!:string;
-	@Prop()
-	public iconSelected!:string;
-	@Prop()
-	public title!:string;
-	@Prop()
-	public name!:string;
-	@Prop({default: false})
-	public loading!:boolean;
-	@Prop({default: "button"})
-	public type!:string;
-	@Prop()
-	public target!:string;
-	@Prop({default: null})
-	public to!:any;
-	@Prop({default: -1})
-	public percent!:number;
-	@Prop({default:false})
-	public white!:boolean;
-	@Prop({default:false})
-	public big!:boolean;
-	@Prop({default:false})
-	public highlight!:boolean;
-	@Prop({default:false})
-	public selected!:boolean;
-	@Prop({default:false})
-	public disabled!:boolean;
-	@Prop({default:false})
-	public value!:boolean;
+const emit = defineEmits(["click", "change", "update:modelValue"]);
 
-	private iconClass:string = "";
-	public pInterpolated:number = -1;
-	public checked:boolean = false;
+const pInterpolated = ref(-1);
+const checked = ref(false);
+const browse = ref<HTMLInputElement|null>(null);
 
-	public get nodeType():string {
-		if(this.to) return "router-link";
-		if(this.type == "checkbox") return "div";
-		return "button";
+const nodeType = computed<string>(() => {
+	if(props.to) return "router-link";
+	if(props.type == "checkbox") return "div";
+	return "button";
+});
+
+const parsedIcon = computed<string|undefined>(() => {
+	if(props.type == "checkbox" && props.modelValue) {
+		return require("@/assets/icons/checkmark.svg");
 	}
+	if(props.selected !== false && props.iconSelected) {
+		return props.iconSelected;
+	}else{
+		return props.icon;
+	}
+});
 
-	public get parsedIcon():string {
-		if(this.type == "checkbox" && this.value) {
-			return require("@/assets/icons/checkmark.svg");
+const progressStyle = computed<any>(() => {
+	if(pInterpolated.value> -1 && pInterpolated.value<100) {
+		let p:number = Math.round(pInterpolated.value);
+		let color = "255, 255, 255";
+		let alpha = .5;
+		if(props.white) {
+			color = "75, 201, 194"
+			alpha = .3;
 		}
-		if(this.selected !== false && this.iconSelected) {
-			return this.iconSelected;
-		}else{
-			return this.icon;
-		}
+		return {backgroundImage: "linear-gradient(to right, rgba("+color+",0) "+p+"%,rgba("+color+",0) "+p+"%,rgba("+color+","+alpha+") "+p+"%,rgba("+color+","+alpha+") 100%)"};
+	}else{
+		return {};
 	}
+});
 
-	public get progressStyle():any {
-		if(this.pInterpolated> -1 && this.pInterpolated<100) {
-			let p:number = Math.round(this.pInterpolated);
-			let color = "255, 255, 255";
-			let alpha = .5;
-			if(this.white) {
-				color = "75, 201, 194"
-				alpha = .3;
-			}
-			return {backgroundImage: "linear-gradient(to right, rgba("+color+",0) "+p+"%,rgba("+color+",0) "+p+"%,rgba("+color+","+alpha+") "+p+"%,rgba("+color+","+alpha+") 100%)"};
-		}else{
-			return {};
-		}
-	}
+const classes = computed<any>(() => {
+	let list =  ["button"]
+	if(!props.title) list.push("noTitle");
+	if(props.white !== false) list.push("white");
+	if(props.big !== false) list.push("big");
+	if(props.highlight !== false) list.push("highlight");
+	if(props.selected !== false) list.push("selected");
+	if(props.loading !== false) list.push("disabled");
+	if(props.disabled !== false) list.push("disabled");
+	if(props.type == "checkbox") list.push("checkbox");
+	return list;
+});
 
-	public get classes():any {
-		let list =  ["button"]
-		if(!this.title) list.push("noTitle");
-		if(this.white !== false) list.push("white");
-		if(this.big !== false) list.push("big");
-		if(this.highlight !== false) list.push("highlight");
-		if(this.selected !== false) list.push("selected");
-		if(this.loading !== false) list.push("disabled");
-		if(this.disabled !== false) list.push("disabled");
-		if(this.type == "checkbox") list.push("checkbox");
-		return list;
-	}
+onMounted(() => {
+	checked.value = props.modelValue;
+});
 
-	public mounted():void {
-		this.checked = this.value;
-	}
-	
-	public beforeDestroy():void {
-		
-	}
-
-	public resetBrowse():void {
-		(<HTMLFormElement>this.$refs.browse).value = null;
-	}
-
-	public onClick():void {
-		this.$emit('click');//bubble up event to avoid having to listen for @click.native everytime
-	}
-
-
-	@Watch("checked")
-	public onSelectStateChange():void {
-		this.$emit('input', this.checked);
-	}
-
-	@Watch("percent")
-	private onPercentChange():void {
-		let duration = this.percent < this.pInterpolated? 0 : .35;
-		gsap.killTweensOf(this);
-		gsap.to(this, {duration, pInterpolated:this.percent, ease:"sine.inout"});
-	}
-
+function resetBrowse():void {
+	if(browse.value) browse.value.value = "";
 }
+
+function onClick():void {
+	emit('click');//bubble up event to avoid having to listen for @click.native everytime
+}
+
+watch(checked, () => {
+	emit('update:modelValue', checked.value);
+});
+
+watch(() => props.percent, () => {
+	let duration = props.percent < pInterpolated.value? 0 : .35;
+	gsap.killTweensOf(pInterpolated);
+	gsap.to(pInterpolated, {duration, value:props.percent, ease:"sine.inout"});
+});
+
+defineExpose({ resetBrowse });
 </script>
 
 <style lang="less" scoped>

@@ -24,15 +24,6 @@ export default class Config {
 			prod: document.location.port,
 		});
 	}
-	
-	public static get SOCKET_PATH():string{
-		if(this.IS_PROD) {
-			return "/sock";
-		}else{
-			return window.location.origin.replace(/(.*):[0-9]+/gi, "$1")+":3006/sock";
-		}
-	};
-	
 	public static get API_PATH(): string {
 		return this.getEnvData({
 			dev: "http://localhost:"+this.SERVER_PORT+"/api",

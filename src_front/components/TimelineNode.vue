@@ -13,34 +13,20 @@
 	</div>
 </template>
 
-<script lang="ts">
-import { Component, Inject, Model, Prop, Vue, Watch, Provide } from "vue-property-decorator";
+<script setup lang="ts">
+import { computed } from "vue";
 import Config from "../utils/Config";
 import NodeData from "../vo/NodeData";
 
-@Component({
-	components:{}
-})
-export default class TimelineNode extends Vue {
+const props = defineProps<{
+	data:NodeData;
+}>();
 
-	@Prop()
-	public data!:NodeData;
-
-	public get styles():any {
-		return {
-			height:((this.data.duration? this.data.duration : 1000) * Config.TIME_RENDER_RATIO)+"px"
-		}
+const styles = computed<any>(() => {
+	return {
+		height:((props.data.duration? props.data.duration : 1000) * Config.TIME_RENDER_RATIO)+"px"
 	}
-
-	public mounted():void {
-		
-	}
-
-	public beforeDestroy():void {
-		
-	}
-
-}
+});
 </script>
 
 <style scoped lang="less">

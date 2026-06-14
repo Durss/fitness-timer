@@ -1,19 +1,17 @@
-import Vue from 'vue'
-import Vuex from 'vuex'
+import { createStore } from 'vuex'
+import RoutineData from '../vo/RoutineData'
 
-Vue.use(Vuex)
-
-export default new Vuex.Store({
+export default createStore({
   state: {
-	  routines: []
+	  routines: [] as RoutineData[]
   },
 
   mutations: {
-	addRoutine(state, payload) {
+	addRoutine(state, payload:RoutineData) {
 		state.routines.push(payload);
 		localStorage.setItem("data", JSON.stringify(state.routines));
 	 },
-	 deleteRoutine(state, payload) {
+	 deleteRoutine(state, payload:RoutineData) {
 		for (let i = 0; i < state.routines.length; i++) {
 			const routine = state.routines[i];
 			if(payload.id == routine.id) {

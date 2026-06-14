@@ -13,46 +13,34 @@
 	</div>
 </template>
 
-<script lang="ts">
-import { Component, Inject, Model, Prop, Vue, Watch, Provide } from "vue-property-decorator";
+<script setup lang="ts">
+import { ref, watch, onMounted } from "vue";
 import StepData from '../vo/StepData';
 import Button from './Button.vue';
 import Utils from '../utils/Utils';
 
-@Component({
-	components:{
-		Button,
-	}
-})
-export default class StepLine extends Vue {
+const props = defineProps<{
+	data:StepData;
+}>();
 
-	@Prop()
-	public data!:StepData;
+defineEmits(["delete"]);
 
-	public exerciseName:string = "";
-	public exerciseDuration:string = "00:02:00";
+const exerciseName = ref("");
+const exerciseDuration = ref("00:02:00");
 
-	public mounted():void {
-		this.exerciseName = this.data.name ?? '';
-		this.exerciseDuration = Utils.secondsToInputValue(this.data.duration ?? 0);
-	}
+onMounted(() => {
+	exerciseName.value = props.data.name ?? '';
+	exerciseDuration.value = Utils.secondsToInputValue(props.data.duration ?? 0);
+});
 
-	public beforeDestroy():void {
-		
-	}
+watch(exerciseName, () => {
+	props.data.name = exerciseName.value;
+});
 
-	@Watch("exerciseName")
-	public updateName():void {
-		this.data.name = this.exerciseName;
-	}
-
-	@Watch("exerciseDuration")
-	public updateDuration():void {
-		let d = new Date("1/1/1970 "+this.exerciseDuration);
-		this.data.duration = d.getTime() - d.getTimezoneOffset()*60000;
-	}
-
-}
+watch(exerciseDuration, () => {
+	let d = new Date("1/1/1970 "+exerciseDuration.value);
+	props.data.duration = d.getTime() - d.getTimezoneOffset()*60000;
+});
 </script>
 
 <style scoped lang="less">

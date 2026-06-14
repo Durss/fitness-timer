@@ -29,8 +29,8 @@ export default class HTTPServer {
 			// verbose:true,
 			rewrites: [
 				{
-					//Avoiding rewrites for API calls and socket
-					from: /.*\/(api|sock)\/?.*$/,
+					//Avoiding rewrites for API calls
+					from: /.*\/(api)\/?.*$/,
 					to: function(context) {
 						return context.parsedUrl.pathname;
 					}

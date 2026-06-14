@@ -2,7 +2,7 @@
 	<div class="timer">
 		<Button :icon="require('@/assets/icons/back.svg')" class="back" :to="{name:'home'}" big />
 		<div class="head">
-			<h1>{{routine.name}}</h1>
+			<h1>{{routine?.name}}</h1>
 			<h2>{{totalDurationFormated}}</h2>
 		</div>
 		<div class="list" v-if="!needClick">
@@ -22,210 +22,209 @@
 	</div>
 </template>
 
-<script lang="ts">
-import { Component, Inject, Model, Prop, Vue, Watch, Provide } from "vue-property-decorator";
+<script setup lang="ts">
+import { ref, computed, onBeforeMount, onBeforeUnmount } from "vue";
+import { useStore } from "vuex";
+import { useRouter } from "vue-router";
 import RoutineData from '../vo/RoutineData';
 import TimelineNode from '../components/TimelineNode.vue';
 import StepData from '../vo/StepData';
 import Utils from '../utils/Utils';
-import Config from '../utils/Config';
 import Beeper from '../utils/Beeper';
 import Button from '../components/Button.vue';
 
-@Component({
-	components:{
-		Button,
-		TimelineNode,
+const props = defineProps<{
+	id:any;
+}>();
+
+const store = useStore();
+const router = useRouter();
+
+const steps = ref<any[]>([]);
+const needClick = ref(false);
+const elapsed = ref(0);
+const totalDuration = ref(0);
+const scrollY = ref(0);
+const labelPos = ref(0);
+const currentStepLabel = ref("");
+const currentStepCounter = ref(0);
+const routine = ref<RoutineData|null>(null);
+const list = ref<HTMLDivElement|null>(null);
+
+const timings:{time:number, data?:StepData}[] = [];
+let complete = false;
+let disposed = false;
+let currentStepData:any = null;
+let startTime:Date;
+let startExerciseTime:Date;
+const beeps:number[] = [];
+
+const totalDurationFormated = computed<string>(() => {
+	return Utils.secondsToInputValue(Math.max(0,totalDuration.value - elapsed.value));
+});
+
+const labelStyles = computed<any>(() => {
+	return {
+		top: labelPos.value+"px",
 	}
-})
-export default class Timer extends Vue {
+});
 
-	@Prop()
-	public id:any;
+const currentDuration = computed<string>(() => {
+	return Utils.secondsToInputValue(Math.ceil(Math.max(0,currentStepCounter.value)));
+});
 
-	public steps:any = [];
-	public timings:{time:number, data?:StepData}[] = [];
-	public complete:boolean = false;
-	public needClick:boolean = false;
-	public disposed:boolean = false;
-	public elapsed:number = 0;
-	public totalDuration:number = 0;
-	public scrollY:number = 0;
-	public labelPos:number = 0;
-	public currentStepData:any = null;
-	public currentStepLabel:string = "";
-	public currentStepCounter:number = 0;
-
-	public routine!:RoutineData;
-	public startTime!:Date;
-	public startExerciseTime!:Date;
-	public beeps:number[] = [];
-
-	public get totalDurationFormated():string {
-		return Utils.secondsToInputValue(Math.max(0,this.totalDuration - this.elapsed));
+const scrollStyles = computed<any>(() => {
+	return {
+		marginTop: -scrollY.value+"px",
 	}
+});
 
-	public get labelStyles():any {
-		return {
-			top: this.labelPos+"px",
-		}
-	}
-
-	public get currentDuration():string {
-		return Utils.secondsToInputValue(Math.ceil(Math.max(0,this.currentStepCounter)));
-	}
-
-	public get scrollStyles():any {
-		return {
-			marginTop: -this.scrollY+"px",
-		}
-	}
-
-	public beforeMount():void {
-		this.needClick = !Beeper.instance.ready;
-		let routines = this.$store.state.routines;
-		if(routines && routines.length > 0) {
-			for (let i = 0; i < routines.length; i++) {
-				const r = routines[i];
-				if(r.id == this.id) {
-					this.routine = r;
-				}
+onBeforeMount(() => {
+	needClick.value = !Beeper.instance.ready;
+	let routines = store.state.routines;
+	if(routines && routines.length > 0) {
+		for (let i = 0; i < routines.length; i++) {
+			const r = routines[i];
+			if(r.id == props.id) {
+				routine.value = r;
 			}
 		}
-		if(!this.routine) {
-			this.$router.push({name:"home"});
-			return;
+	}
+	if(!routine.value) {
+		router.push({name:"home"});
+		return;
+	}
+
+	//PREPARE DATA STRUCTURE TO BUILD TIMELINE
+	let prepDuration = 10000;
+	steps.value.push({type:"node", label:"Get Ready"});
+	steps.value.push({type:"path", duration:prepDuration});
+	timings.push({time:0, data:{id:"start", duration:prepDuration}});
+	let delay = prepDuration;
+	totalDuration.value += delay;
+	let loops:number = routine.value.loops? routine.value.loops : 0;
+	for (let j = 0; j < loops; j++) {
+		//Add step
+		for (let i = 0; i < (<StepData[]>routine.value.steps).length; i++) {
+			const s:StepData = <StepData>routine.value.steps?.[i];
+			steps.value.push({type:"node", label:s.name});
+			steps.value.push({type:"path", duration:s.duration});
+			timings.push({time:delay, data:s});
+			let t = s.duration? s.duration : 0;
+			totalDuration.value += t;
+			delay += t;
 		}
-		
-		//PREPARE DATA STRUCTURE TO BUILD TIMELINE
-		let prepDuration = 10000;
-		this.steps.push({type:"node", label:"Get Ready"});
-		this.steps.push({type:"path", duration:prepDuration});
-		this.timings.push({time:0, data:{id:"start", duration:prepDuration}});
-		let delay = prepDuration;
-		this.totalDuration += delay;
-		let loops:number = this.routine.loops? this.routine.loops : 0;
-		for (let j = 0; j < loops; j++) {
-			//Add step
-			for (let i = 0; i < (<StepData[]>this.routine.steps).length; i++) {
-				const s:StepData = <StepData>this.routine.steps?.[i];
-				this.steps.push({type:"node", label:s.name});
-				this.steps.push({type:"path", duration:s.duration});
-				this.timings.push({time:delay, data:s});
-				let t = s.duration? s.duration : 0;
-				this.totalDuration += t;
-				delay += t;
+		//Add pauses
+		if(j < loops-1) {
+			steps.value.push({type:"node", label:"Pause"});
+			steps.value.push({type:"path", duration:routine.value.pauseDuration});
+			timings.push({time:delay, data:{id:"pause", duration:routine.value.pauseDuration}});
+			let t = routine.value.pauseDuration? routine.value.pauseDuration : 0;
+			totalDuration.value += t;
+			delay += t;
+		}
+	}
+	steps.value[steps.value.length-1].isLast = true;
+	steps.value.push({type:"node", label:"Finish"});
+	timings.push({time:delay, data:{id:"complete", duration:0}});
+
+	if(!needClick.value) {
+		startTimer();
+	}
+	requestAnimationFrame(_=>renderFrame());
+});
+
+function startTimer():void {
+	needClick.value = false;
+	startTime = new Date();
+	// startTime.setSeconds(startTime.getSeconds() - 535);//TODO comment that debug
+	programBeeps();
+}
+
+onBeforeUnmount(() => {
+	disposed = true;
+	//Cleanup programmed beeps
+	for (let i = 0; i < beeps.length; i++) {
+		clearTimeout(beeps[i]);
+	}
+	Beeper.instance.stopAll();
+});
+
+function renderFrame():void {
+	if(disposed || complete) return;
+	requestAnimationFrame(_=>renderFrame());
+	if(needClick.value) return;
+
+	elapsed.value = new Date().getTime() - startTime.getTime();
+	let currentStep!:StepData;
+	for (let i = 0; i < timings.length; i++) {
+		const e = timings[i];
+		if(e.time >= elapsed.value) {
+			currentStep = <StepData>timings[i-1].data;
+			if(currentStepData != currentStep) {
+				currentStepData = currentStep;
+				startExerciseTime = new Date();
 			}
-			//Add pauses
-			if(j < loops-1) {
-				this.steps.push({type:"node", label:"Pause"});
-				this.steps.push({type:"path", duration:this.routine.pauseDuration});
-				this.timings.push({time:delay, data:{id:"pause", duration:this.routine.pauseDuration}});
-				let t = this.routine.pauseDuration? this.routine.pauseDuration : 0;
-				this.totalDuration += t;
-				delay += t;
-			}
+			break;
 		}
-		this.steps[this.steps.length-1].isLast = true;
-		this.steps.push({type:"node", label:"Finish"});
-		this.timings.push({time:delay, data:{id:"complete", duration:0}});
-
-		if(!this.needClick) {
-			this.startTimer();
-		}
-		requestAnimationFrame(_=>this.renderFrame());
 	}
 
-	public startTimer():void {
-		this.needClick = false;
-		this.startTime = new Date();
-		// this.startTime.setSeconds(this.startTime.getSeconds() - 535);//TODO comment that debug
-		this.programBeeps();
+	let id = currentStep? currentStep.id : "complete";
+	switch(id) {
+		case "start":
+			currentStepLabel.value = "⏱ Get Ready ⏱";
+			break;
+		case "pause":
+			currentStepLabel.value = "⏳ Relax ⏳";
+			break;
+		case "complete":
+			complete = true;
+			currentStepLabel.value = "👏 Finish 👏";
+			break;
+		default:
+			currentStepLabel.value = currentStep.name;
+
 	}
+	currentStepCounter.value = Math.ceil(currentStepData.duration - (new Date().getTime() - startExerciseTime.getTime()));
 
-	public beforeDestroy():void {
-		this.disposed = true;
-		//Cleanup programmed beeps
-		for (let i = 0; i < this.beeps.length; i++) {
-			clearTimeout(this.beeps[i]);
-		}
-		Beeper.instance.stopAll();
+	let listEl:HTMLDivElement = <HTMLDivElement>list.value;
+	if(!listEl) return;
+	let boundsList = listEl.getBoundingClientRect();
+	let cY = window.innerHeight * .35;
+
+
+	scrollY.value = 0;//Math.round((boundsList.height) * elapsed.value/totalDuration.value);
+	// labelPos.value = 160;
+	//50 is the padding-top of the list
+	//25 is the radius of a step dot
+	//160 is the original offset of the center of the first dot on screen
+	let pos = Math.round((boundsList.height - 50 - 25) * elapsed.value/totalDuration.value) + 160;
+	if(pos < cY) {
+		labelPos.value = pos;
+	} else {
+		scrollY.value = pos - cY;
+		labelPos.value = cY;
 	}
+	// window.scrollBy(0, scrollY.value);
 
-	private renderFrame():void {
-		if(this.disposed || this.complete) return;
-		requestAnimationFrame(_=>this.renderFrame());
-		if(this.needClick) return;
+}
 
-		this.elapsed = new Date().getTime() - this.startTime.getTime();
-		let currentStep!:StepData;
-		for (let i = 0; i < this.timings.length; i++) {
-			const e = this.timings[i];
-			if(e.time >= this.elapsed) {
-				currentStep = <StepData>this.timings[i-1].data;
-				if(this.currentStepData != currentStep) {
-					this.currentStepData = currentStep;
-					this.startExerciseTime = new Date();
-				}
-				break;
-			}
-		}
-		
-		let id = currentStep? currentStep.id : "complete";
-		switch(id) {
-			case "start":
-				this.currentStepLabel = "⏱ Get Ready ⏱";
-				break;
-			case "pause":
-				this.currentStepLabel = "⏳ Relax ⏳";
-				break;
-			case "complete":
-				this.complete = true;
-				this.currentStepLabel = "👏 Finish 👏";
-				break;
-			default:
-				this.currentStepLabel = currentStep.name;
-
-		}
-		this.currentStepCounter = Math.ceil(this.currentStepData.duration - (new Date().getTime() - this.startExerciseTime.getTime()));
-
-		let list:HTMLDivElement = <HTMLDivElement>this.$refs.list;
-		let boundsList = list.getBoundingClientRect();
-		let cY = window.innerHeight * .35;
-		
-
-		this.scrollY = 0;//Math.round((boundsList.height) * this.elapsed/this.totalDuration);
-		// this.labelPos = 160;
-		//50 is the padding-top of the list
-		//25 is the radius of a step dot
-		//160 is the original offset of the center of the first dot on screen
-		let pos = Math.round((boundsList.height - 50 - 25) * this.elapsed/this.totalDuration) + 160;
-		if(pos < cY) {
-			this.labelPos = pos;
-		} else {
-			this.scrollY = pos - cY;
-			this.labelPos = cY;
-		}
-		// window.scrollBy(0, this.scrollY);
-		
-	}
-
-	/**
-	 * Oscillator is slow to initialize and start beeping (~500ms)
-	 * that's why all beeps are pre programmed from the beggining
-	 * 500ms earlier before they should play so they appear synced
-	 * with the textual timer
-	 */
-	public programBeeps():void {
+/**
+ * Oscillator is slow to initialize and start beeping (~500ms)
+ * that's why all beeps are pre programmed from the beggining
+ * 500ms earlier before they should play so they appear synced
+ * with the textual timer
+ */
+function programBeeps():void {
 		//*
 		let delay = 0;
-		for (let i = 0; i < this.timings.length; i++) {
-			const t = this.timings[i];
+		for (let i = 0; i < timings.length; i++) {
+			const t = timings[i];
 			switch(t.data.id) {
 				case "start":
 				case "pause":
 					if(t.data.id == "pause") {
-						this.beeps.push(setTimeout(async _=> {
+						beeps.push(setTimeout(async _=> {
 							// Beeper.instance.beepPatern([{d:100, f:1000, p:100}, {d:500, f:1000}]);
 							Beeper.instance.beepPatern([{d:500, f:1000, p:100}, {d:500, f:1000, p:100}, {d:500, f:1000}]);
 
@@ -236,7 +235,7 @@ export default class Timer extends Vue {
 				
 					//Start beeping 5s before pause ends
 					if(t.data.duration >= 10000) {
-						this.beeps.push(setTimeout(async _=> {
+						beeps.push(setTimeout(async _=> {
 							// await Beeper.instance.beepPatern([{d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}], .15);
 							await Beeper.instance.beepPatern([{d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}]);
 						}, Math.max(0,t.data.duration - 5500) + delay));
@@ -244,19 +243,19 @@ export default class Timer extends Vue {
 					break;
 					
 				case "complete":
-					this.beeps.push(setTimeout(async _=> {
+					beeps.push(setTimeout(async _=> {
 						// Beeper.instance.beepPatern([{d:50, f:1500}, {d:100, f:1800}, {d:50, f:2000}, {d:50, f:2400}, {d:500, f:2800}]);
 						Beeper.instance.beepPatern([{d:100, f:1300, p:100}, {d:50, f:1300, p:50}, {d:50, f:1300, p:50}, {d:500, f:1800}]);
 					}, delay - 500));
 					break;
 
 				default:
-					this.beeps.push(setTimeout(async _=> {
+					beeps.push(setTimeout(async _=> {
 						Beeper.instance.beep(500, 1500, 1, "sine");
 					}, delay - 500));
 					//Start beeping 5s before end of exercise
 					if(t.data.duration > 7000) {
-						this.beeps.push(setTimeout(async _=> {
+						beeps.push(setTimeout(async _=> {
 							await Beeper.instance.beepPatern([{d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}, {d:100, f:1000, p:900}], .15);
 						}, Math.max(0,t.data.duration - 5500) + delay));
 					}
@@ -265,8 +264,6 @@ export default class Timer extends Vue {
 			delay += t.data.duration;
 		}
 		//*/
-
-	}
 
 }
 </script>
