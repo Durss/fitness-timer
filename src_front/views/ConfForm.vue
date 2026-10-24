@@ -20,16 +20,16 @@
 			<div class="line">
 				<label>Exercises :</label>
 				<StepLine v-for="(step, index) in steps" :data="step" :key="step.id" class="step" @delete="deleteStep(index)" />
-				<Button title="Add exercise" type="button" class="add" white @click="addExercise()" :icon="require('@/assets/icons/plus.svg')" />
+				<Button title="Add exercise" type="button" class="add" white @click="addExercise()" :icon="plusIcon" />
 			</div>
 
-			<Button title="Start" type="submit" class="submit" :icon="require('@/assets/icons/checkmark_white.svg')" />
+			<Button title="Start" type="submit" class="submit" :icon="checkmarkIcon" />
 		</form>
 		<div class="routines" v-if="routines && routines.length > 0">
 			<h1>Previous routines</h1>
 			<div v-for="r in routines" :key="r.id" class="routine">
-				<Button :to="{name:'timer', params:{id:r.id}}" :title="r.name" :icon="require('@/assets/icons/play.svg')" />
-				<Button :icon="require('@/assets/icons/delete.svg')" highlight @click="deleteRoutine(r);" />
+				<Button :to="{name:'timer', params:{id:r.id}}" :title="r.name" :icon="playIcon" />
+				<Button :icon="deleteIcon" highlight @click="deleteRoutine(r);" />
 			</div>
 		</div>
 	</div>
@@ -44,6 +44,10 @@ import StepLine from '../components/StepLine.vue';
 import RoutineData from '../vo/RoutineData';
 import StepData from '../vo/StepData';
 import { v4 as uuidv4 } from 'uuid';
+import plusIcon from '@/assets/icons/plus.svg';
+import checkmarkIcon from '@/assets/icons/checkmark_white.svg';
+import playIcon from '@/assets/icons/play.svg';
+import deleteIcon from '@/assets/icons/delete.svg';
 
 const store = useStore();
 const router = useRouter();

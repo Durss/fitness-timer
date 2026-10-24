@@ -1,6 +1,6 @@
 <template>
 	<div class="timer">
-		<Button :icon="require('@/assets/icons/back.svg')" class="back" :to="{name:'home'}" big />
+		<Button :icon="backIcon" class="back" :to="{name:'home'}" big />
 		<div class="head">
 			<h1>{{routine?.name}}</h1>
 			<h2>{{totalDurationFormated}}</h2>
@@ -32,6 +32,7 @@ import StepData from '../vo/StepData';
 import Utils from '../utils/Utils';
 import Beeper from '../utils/Beeper';
 import Button from '../components/Button.vue';
+import backIcon from '@/assets/icons/back.svg';
 
 const props = defineProps<{
 	id:any;

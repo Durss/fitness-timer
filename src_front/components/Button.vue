@@ -23,6 +23,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
 import gsap from 'gsap';
+import checkmarkIcon from '@/assets/icons/checkmark.svg';
 
 const props = withDefaults(defineProps<{
 	icon?:string;
@@ -67,7 +68,7 @@ const nodeType = computed<string>(() => {
 
 const parsedIcon = computed<string|undefined>(() => {
 	if(props.type == "checkbox" && props.modelValue) {
-		return require("@/assets/icons/checkmark.svg");
+		return checkmarkIcon;
 	}
 	if(props.selected !== false && props.iconSelected) {
 		return props.iconSelected;

@@ -1,27 +1,21 @@
 {
 	"compilerOptions": {
-		"target": "es6",
-		"module": "commonjs",
+		"target": "es2022",
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
 		"strict": true,
 		"noImplicitAny": false,
 		"noImplicitThis": false,
 		"strictNullChecks": false,
-		"importHelpers": true,
-		"experimentalDecorators": true,
 		"sourceMap": false,
-		"baseUrl": ".",
+		"rootDir": "./src_server",
 		"outDir": "./server",
 		"skipLibCheck": true,
-		"paths": {
-			"@/*": [
-				"src_server/*"
-			]
-		},
+		"types": [
+			"node"
+		],
 		"lib": [
-			"esnext",
-			"dom",
-			"dom.iterable",
-			"scripthost"
+			"es2022"
 		]
 	},
 	"include": [

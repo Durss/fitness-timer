@@ -1,31 +1,29 @@
 {
   "compilerOptions": {
-    "target": "es2017",
+    "target": "es2020",
     "module": "esnext",
+    "moduleResolution": "bundler",
     "strict": true,
-    "importHelpers": true,
-    "moduleResolution": "node",
-    "experimentalDecorators": true,
+    "isolatedModules": true,
     "esModuleInterop": true,
     "strictNullChecks": false,
     "allowSyntheticDefaultImports": true,
     "strictPropertyInitialization": false,
     "sourceMap": true,
     "noImplicitAny": false,
-    "baseUrl": ".",
+    "skipLibCheck": true,
     "types": [
-      "webpack-env"
+      "vite/client"
     ],
     "paths": {
       "@/*": [
-        "src_front/*"
+        "./src_front/*"
       ]
     },
     "lib": [
       "esnext",
       "dom",
-      "dom.iterable",
-      "scripthost"
+      "dom.iterable"
     ]
   },
   "include": [

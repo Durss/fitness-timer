@@ -12,7 +12,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 # Build both the Vue frontend and the TypeScript server.
-#   npm run build  ->  vue-cli-service build  (outputs ./dist)
+#   npm run build  ->  vue-tsc + vite build  (outputs ./dist)
 #                  ->  tsc                    (outputs ./server)
 COPY . .
 RUN npm run build

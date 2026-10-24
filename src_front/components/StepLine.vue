@@ -1,6 +1,6 @@
 <template>
 	<div class="stepline">
-		<Button :icon="require('@/assets/icons/cross_white.svg')" class="delete" @click="$emit('delete')" />
+		<Button :icon="crossIcon" class="delete" @click="$emit('delete')" />
 		<div class="line">
 			<label for="label">Name</label>
 			<input type="text" id="label" placeholder="name..." class="input" v-model="exerciseName" @keyup.esc="exerciseName=null" maxlength="100" >
@@ -17,6 +17,7 @@
 import { ref, watch, onMounted } from "vue";
 import StepData from '../vo/StepData';
 import Button from './Button.vue';
+import crossIcon from '@/assets/icons/cross_white.svg';
 import Utils from '../utils/Utils';
 
 const props = defineProps<{
