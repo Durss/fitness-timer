@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 # Stage 1 — build the frontend (-> dist) and the server (-> server)
 # ---------------------------------------------------------------------------
-FROM node:22-alpine AS builder
+FROM node:lts-alpine AS builder
 WORKDIR /app
 
 # Install all dependencies (including dev) from the lockfile for a
@@ -20,7 +20,7 @@ RUN npm run build
 # ---------------------------------------------------------------------------
 # Stage 2 — minimal runtime image
 # ---------------------------------------------------------------------------
-FROM node:22-alpine AS runtime
+FROM node:lts-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
